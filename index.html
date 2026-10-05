@@ -1,0 +1,187 @@
+<!DOCTYPE html>
+<html lang="ja">
+<head>
+<meta charset="utf-8">
+<meta name="viewport" content="width=device-width, initial-scale=1, viewport-fit=cover">
+<title>C++ / DX11 単語帳</title>
+<style>
+:root{--bg:#eef2f7;--card:#fff;--ink:#14213d;--sub:#5b6b86;--line:#d3dbe8;--acc:#2b59ff;--cpp:#2b59ff;--dx:#c2410c;--hl:#0f766e;--ok:#16a34a;--ng:#dc2626;--code:#0f1b33;--codeink:#dbe7ff;
+box-sizing:border-box;padding-top:env(safe-area-inset-top,0px);padding-bottom:env(safe-area-inset-bottom,0px)}
+@media (prefers-color-scheme:dark){:root:not([data-theme="light"]){--bg:#0d1526;--card:#16213a;--ink:#e6ecf8;--sub:#93a3c2;--line:#2a3857;--acc:#6f93ff;--cpp:#7fa0ff;--dx:#fb923c;--hl:#2dd4bf;--code:#0a1121;--codeink:#cfe0ff}}
+:root[data-theme="dark"]{--bg:#0d1526;--card:#16213a;--ink:#e6ecf8;--sub:#93a3c2;--line:#2a3857;--acc:#6f93ff;--cpp:#7fa0ff;--dx:#fb923c;--hl:#2dd4bf;--code:#0a1121;--codeink:#cfe0ff}
+*{box-sizing:border-box}
+html{scroll-padding-top:env(safe-area-inset-top,0px)}
+body{margin:0;background:var(--bg);color:var(--ink);font:16px/1.6 "Hiragino Sans","Noto Sans JP",system-ui,sans-serif;-webkit-tap-highlight-color:transparent}
+main{max-width:560px;margin:0 auto;padding:14px 14px 40px}
+h1{font-size:19px;margin:4px 0 12px;letter-spacing:.02em}
+.bar{display:flex;gap:6px;margin-bottom:10px;flex-wrap:wrap}
+.bar button,.chip{border:1px solid var(--line);background:var(--card);color:var(--ink);padding:8px 14px;border-radius:999px;font:inherit;font-size:14px;cursor:pointer}
+.bar button[aria-pressed="true"]{background:var(--ink);color:var(--bg);border-color:var(--ink)}
+.stat{color:var(--sub);font-size:13px;margin:2px 2px 10px;display:flex;justify-content:space-between}
+.card{background:var(--card);border:1px solid var(--line);border-radius:14px;padding:18px;min-height:280px;display:flex;flex-direction:column;gap:12px}
+.tag{align-self:flex-start;font-size:12px;padding:2px 10px;border-radius:6px;border:1px solid currentColor}
+.tag.cpp{color:var(--cpp)}.tag.dx{color:var(--dx)}.tag.hlsl{color:var(--hl)}
+.score{font:700 46px/1.2 ui-monospace,Menlo,Consolas,monospace;margin:4px 0}
+.wrong{margin-top:10px}.wrong .term{font-size:17px}
+.term{font:700 24px/1.3 ui-monospace,"SF Mono",Menlo,Consolas,monospace;word-break:break-all}
+.mean{font-size:17px}
+pre{margin:0;background:var(--code);color:var(--codeink);padding:12px;border-radius:10px;overflow-x:auto;font:13px/1.55 ui-monospace,"SF Mono",Menlo,Consolas,monospace}
+.hint{color:var(--sub);font-size:14px;margin-top:auto;text-align:center}
+.row{display:flex;gap:10px;margin-top:12px}
+.row button{flex:1;padding:14px;border-radius:12px;border:1px solid var(--line);background:var(--card);color:var(--ink);font:inherit;font-weight:600;cursor:pointer}
+.row .yes{background:var(--ok);border-color:var(--ok);color:#fff}
+.row .no{border-color:var(--ng);color:var(--ng)}
+.opt{display:block;width:100%;text-align:left;padding:13px 14px;margin-top:8px;border-radius:12px;border:1px solid var(--line);background:var(--card);color:var(--ink);font:inherit;font-size:15px;cursor:pointer}
+.opt.good{border-color:var(--ok);background:color-mix(in srgb,var(--ok) 16%,var(--card))}
+.opt.bad{border-color:var(--ng);background:color-mix(in srgb,var(--ng) 14%,var(--card))}
+.next{margin-top:12px;width:100%;padding:14px;border-radius:12px;border:0;background:var(--acc);color:#fff;font:inherit;font-weight:700;cursor:pointer}
+button:focus-visible{outline:3px solid var(--acc);outline-offset:2px}
+.small{font-size:13px;color:var(--sub);text-align:center;margin-top:16px}
+.small button{background:none;border:0;color:var(--sub);text-decoration:underline;font:inherit;cursor:pointer}
+</style>
+</head>
+<body>
+<main>
+<h1>C++ / DX11 単語帳</h1>
+<div class="bar" id="mode">
+  <button data-m="learn" aria-pressed="true">カード</button>
+  <button data-m="quiz" aria-pressed="false">クイズ</button>
+  <button data-m="test" aria-pressed="false">テスト</button>
+</div>
+<div class="bar" id="cat">
+  <button data-c="all" aria-pressed="true">全部</button>
+  <button data-c="cpp" aria-pressed="false">C++</button>
+  <button data-c="dx" aria-pressed="false">DX11</button>
+  <button data-c="hlsl" aria-pressed="false">HLSL</button>
+  <button data-c="todo" aria-pressed="false">未習得</button>
+</div>
+<div class="stat"><span id="pos"></span><span id="known"></span></div>
+<div id="view"></div>
+<p class="small"><button id="reset">習得状況をリセット</button></p>
+</main>
+<script>
+const D=[
+["cpp","auto","型を右辺から自動で推論する","auto x = 3.14f;  // float\nfor (auto& e : vec) {}"],
+["cpp","const &","コピーせず読み取り専用で参照を渡す","void Draw(const Mesh& m);"],
+["cpp","constexpr","コンパイル時に評価できる定数・関数","constexpr int kMax = 64;"],
+["cpp","nullptr","型安全なヌルポインタ（NULLの代わり）","Texture* t = nullptr;"],
+["cpp","std::unique_ptr","所有者が1人だけのスマートポインタ。スコープ終了で自動delete","auto p = std::make_unique<Enemy>();"],
+["cpp","std::shared_ptr","参照カウントで共有所有するスマートポインタ","auto s = std::make_shared<Tex>();"],
+["cpp","std::move","値を「ムーブ可能」にキャストして所有権を移す","auto b = std::move(a);"],
+["cpp","range-based for","コンテナの全要素を順に回す構文","for (const auto& v : list) {...}"],
+["cpp","lambda","その場で書く無名関数。[]でキャプチャ指定","auto f = [&](int x){ return x*k; };"],
+["cpp","template","型を引数にしたジェネリックなコード","template<class T>\nT Max(T a, T b){ return a>b?a:b; }"],
+["cpp","enum class","名前空間を持つ型安全な列挙型","enum class State { Idle, Run };\nState s = State::Run;"],
+["cpp","override","仮想関数を上書きする意図を明示（間違えるとエラー）","void Update() override;"],
+["cpp","virtual","基底クラスのポインタ経由でも派生側が呼ばれるようにする","virtual ~Base() = default;"],
+["cpp","RAII","資源の確保を生成時、解放をデストラクタで行う設計","struct Lock{ Lock(){...} ~Lock(){...} };"],
+["cpp","namespace","名前の衝突を防ぐ名前の区画","namespace gfx { void Init(); }"],
+["cpp","static_assert","コンパイル時に条件を検査する","static_assert(sizeof(Vec3)==12);"],
+["cpp","std::vector","サイズ可変の連続配列","std::vector<int> v;\nv.push_back(1);"],
+["cpp","std::optional","値があるかもしれない型","std::optional<int> r = Find();\nif (r) use(*r);"],
+["cpp","inline","ヘッダに定義を書いても多重定義にならない指定","inline int Sq(int x){return x*x;}"],
+["cpp","explicit","暗黙の型変換を禁止するコンストラクタ指定","explicit Window(int w);"],
+["dx","ID3D11Device","リソース（バッファ・テクスチャ等）を作成する窓口","device->CreateBuffer(&desc,&init,&buf);"],
+["dx","ID3D11DeviceContext","描画・パイプライン設定のコマンドを発行する窓口","ctx->DrawIndexed(n,0,0);"],
+["dx","IDXGISwapChain","バックバッファを管理し画面へ表示する","swap->Present(1,0);"],
+["dx","RTV (RenderTargetView)","描画先として使うテクスチャのビュー","ctx->OMSetRenderTargets(1,&rtv,dsv);"],
+["dx","DSV (DepthStencilView)","深度・ステンシルバッファへのビュー","ctx->ClearDepthStencilView(dsv,\n  D3D11_CLEAR_DEPTH,1.0f,0);"],
+["dx","SRV (ShaderResourceView)","シェーダーからテクスチャ等を読むためのビュー","ctx->PSSetShaderResources(0,1,&srv);"],
+["dx","ClearRenderTargetView","描画先を単色で塗りつぶす（毎フレームの最初）","float c[4]={0,0,0,1};\nctx->ClearRenderTargetView(rtv,c);"],
+["dx","Present","描き終えたバックバッファを画面に出す。第1引数1でVSync","swap->Present(1,0);"],
+["dx","Vertex Buffer","頂点データを入れるGPUバッファ","D3D11_BIND_VERTEX_BUFFER"],
+["dx","Index Buffer","頂点の並び順（番号）を入れるバッファ。頂点を使い回せる","ctx->IASetIndexBuffer(ib,\n  DXGI_FORMAT_R32_UINT,0);"],
+["dx","Constant Buffer","行列などをシェーダーへ渡す定数用バッファ（16バイト境界）","D3D11_BIND_CONSTANT_BUFFER"],
+["dx","Input Layout","頂点構造体の中身をシェーダー入力に対応づける定義","device->CreateInputLayout(...);"],
+["dx","Map / Unmap","GPUバッファをCPUから書き換えるためにロック・解除する","ctx->Map(cb,0,\n  D3D11_MAP_WRITE_DISCARD,0,&m);"],
+["dx","D3D11_USAGE","バッファの使い方。DEFAULT=GPU用、DYNAMIC=毎フレームCPU更新","D3D11_USAGE_DYNAMIC"],
+["dx","Viewport","描画結果を画面のどの矩形に出すかの設定","ctx->RSSetViewports(1,&vp);"],
+["dx","Rasterizer State","カリングやワイヤーフレームなどの塗り方設定","D3D11_CULL_BACK"],
+["dx","Sampler State","テクスチャの補間・繰り返し方法の設定","D3D11_FILTER_MIN_MAG_MIP_LINEAR"],
+["dx","Blend State","半透明などの色の混ぜ方の設定","SrcBlend = D3D11_BLEND_SRC_ALPHA;"],
+["dx","VS / PS","頂点シェーダー（頂点を変換）/ ピクセルシェーダー（色を決める）","ctx->VSSetShader(vs,nullptr,0);\nctx->PSSetShader(ps,nullptr,0);"],
+["dx","SV_POSITION","HLSLのシステム値セマンティクス。クリップ空間の座標","float4 pos : SV_POSITION;"],
+["dx","IASetPrimitiveTopology","頂点を三角形・線などどうつなぐか指定する","ctx->IASetPrimitiveTopology(\n  D3D11_PRIMITIVE_TOPOLOGY_TRIANGLELIST);"],
+["dx","HRESULT / FAILED()","D3D関数の戻り値。FAILED(hr)で失敗判定","if (FAILED(hr)) return false;"],
+["dx","ComPtr","COMオブジェクトの参照カウントを自動管理するスマートポインタ","Microsoft::WRL::ComPtr<ID3D11Device> dev;"],
+["dx","D3D11CreateDeviceAndSwapChain","デバイス・コンテキスト・スワップチェインを一括作成","D3D11CreateDeviceAndSwapChain(...);"],
+["hlsl","mul","行列とベクトル/行列の積を求める","float4 p = mul(float4(pos,1), WVP);"],
+["hlsl","normalize","ベクトルの長さを1にそろえる","float3 n = normalize(nrm);"],
+["hlsl","dot","内積。ライティングの明るさ計算に使う","float d = dot(n, lightDir);"],
+["hlsl","cross","外積。2つのベクトルに垂直なベクトルを返す","float3 t = cross(a, b);"],
+["hlsl","saturate","値を0〜1の範囲に収める","float l = saturate(dot(n,L));"],
+["hlsl","clamp","値を指定した最小〜最大に収める","clamp(x, 0.2, 0.8);"],
+["hlsl","lerp","2つの値を比率tで線形補間する","lerp(colA, colB, 0.5);"],
+["hlsl","length","ベクトルの長さ（大きさ）を返す","float r = length(p - center);"],
+["hlsl","pow","べき乗。スペキュラーの鋭さなどに使う","pow(saturate(rv), 32.0);"],
+["hlsl","sqrt","平方根を返す","float d = sqrt(x*x + y*y);"],
+["hlsl","abs","絶対値を返す","abs(uv.x - 0.5);"],
+["hlsl","step","基準値以上なら1、未満なら0を返す","step(0.5, v);"],
+["hlsl","smoothstep","2つの境界の間をなめらかに0〜1へ変化させる","smoothstep(0.3, 0.7, v);"],
+["hlsl","frac","小数部分だけを返す。タイル状の繰り返しに便利","float2 t = frac(uv * 4.0);"],
+["hlsl","floor","小数を切り捨てる","floor(x + 0.5);"],
+["hlsl","sin / cos","三角関数。揺れや波の表現に使う","y += sin(time + x) * 0.1;"],
+["hlsl","reflect","入射ベクトルを法線で反射させる","float3 r = reflect(-L, n);"],
+["hlsl","transpose","行列を転置する","transpose(world);"],
+["hlsl","Sample","テクスチャをサンプラーで読み出す（Texture2D のメソッド）","float4 c = tex.Sample(smp, uv);"],
+["hlsl","clip","引数が負のとき、そのピクセルを破棄する","clip(c.a - 0.5);"],
+["hlsl","cbuffer","定数バッファ宣言。registerでスロット番号を指定","cbuffer CB : register(b0){ float4x4 WVP; }"],
+["hlsl","float4x4","4×4のfloat行列型。ワールド/ビュー/射影に使う","float4x4 WVP;"]
+];
+const KEY="cppdx11-known-v1";
+let known={};try{known=JSON.parse(localStorage.getItem(KEY)||"{}")}catch(e){}
+const save=()=>{try{localStorage.setItem(KEY,JSON.stringify(known))}catch(e){}};
+let mode="learn",cat="all",i=0,flipped=false,order=[],qs=null;
+const $=s=>document.querySelector(s),view=$("#view");
+const esc=s=>s.replace(/[&<>]/g,c=>({"&":"&amp;","<":"&lt;",">":"&gt;"}[c]));
+function pool(){return D.map((d,n)=>n).filter(n=>cat==="all"||(cat==="todo"?!known[n]:D[n][0]===cat))}
+function shuffle(a){a=a.slice();for(let k=a.length-1;k>0;k--){const j=Math.random()*(k+1)|0;[a[k],a[j]]=[a[j],a[k]]}return a}
+function rebuild(){order=shuffle(pool());i=0;flipped=false;qs=null;test=null;render()}
+function stat(){const k=Object.keys(known).filter(n=>known[n]).length;$("#known").textContent=`習得 ${k} / ${D.length}`;$("#pos").textContent=order.length?`${Math.min(i+1,order.length)} / ${order.length}`:""}
+function tag(c){return `<span class="tag ${c}">${{cpp:"C++",dx:"DX11",hlsl:"HLSL"}[c]}</span>`}
+function render(){if(mode==="test")return renderTest();stat();
+ if(!order.length){view.innerHTML=`<div class="card"><div class="mean">この条件のカードはありません。「全部」に切り替えてください。</div></div>`;return}
+ if(i>=order.length){view.innerHTML=`<div class="card"><div class="term">一周完了</div><div class="mean">習得 ${Object.values(known).filter(Boolean).length} / ${D.length}。未習得だけをもう一度回せます。</div></div><button class="next" id="again">もう一周</button>`;$("#again").onclick=rebuild;return}
+ const d=D[order[i]];
+ if(mode==="learn"){
+  view.innerHTML=`<div class="card" id="c" role="button" tabindex="0">${tag(d[0])}<div class="term">${esc(d[1])}</div>${flipped?`<div class="mean">${esc(d[2])}</div><pre>${esc(d[3])}</pre>`:`<div class="hint">タップで意味とコードを表示</div>`}</div>
+  <div class="row"><button class="no" id="n">まだ</button><button class="yes" id="y">覚えた</button></div>`;
+  const flip=()=>{flipped=!flipped;render()};$("#c").onclick=flip;$("#c").onkeydown=e=>{if(e.key==="Enter"||e.key===" "){e.preventDefault();flip()}};
+  $("#y").onclick=()=>{known[order[i]]=true;save();i++;flipped=false;render()};
+  $("#n").onclick=()=>{known[order[i]]=false;save();i++;flipped=false;render()};
+ }else{
+  if(!qs||qs.n!==order[i]){
+   const others=shuffle(D.map((x,n)=>n).filter(n=>n!==order[i]&&D[n][0]===d[0])).slice(0,3);
+   qs={n:order[i],opts:shuffle([order[i],...others]),done:false}
+  }
+  view.innerHTML=`<div class="card">${tag(d[0])}<div class="term">${esc(d[1])}</div><div class="mean">意味はどれ？</div></div>`+
+   qs.opts.map(n=>`<button class="opt" data-n="${n}">${esc(D[n][2])}</button>`).join("")+`<div id="fb"></div>`;
+  view.querySelectorAll(".opt").forEach(b=>b.onclick=()=>{if(qs.done)return;qs.done=true;const ok=+b.dataset.n===order[i];
+   known[order[i]]=ok;save();b.classList.add(ok?"good":"bad");
+   if(!ok)view.querySelector(`[data-n="${order[i]}"]`).classList.add("good");
+   $("#fb").innerHTML=`<pre style="margin-top:10px">${esc(d[3])}</pre><button class="next" id="nx">次へ</button>`;
+   $("#nx").onclick=()=>{i++;qs=null;render()};stat()});
+ }}
+let test=null;
+function renderTest(){stat();
+ if(!order.length){view.innerHTML=`<div class="card"><div class="mean">この条件の問題がありません。「全部」に切り替えてください。</div></div>`;return}
+ if(!test){const ns=order.slice(0,10);test={ns,i:0,pick:[],opts:ns.map(n=>shuffle([n,...shuffle(D.map((x,k)=>k).filter(k=>k!==n&&D[k][0]===D[n][0])).slice(0,3)]))}}
+ const t=test,tot=t.ns.length;
+ if(t.i>=tot){const bad=t.ns.filter((n,k)=>t.pick[k]!==n),ok=tot-bad.length;
+  $("#pos").textContent="結果";
+  view.innerHTML=`<div class="card"><div class="mean">${tot}問中</div><div class="score">${ok} 問正解</div><div class="mean">${ok===tot?"全問正解です。":ok>=tot*0.7?"合格圏です。間違えた語を見直しましょう。":"もう一回挑戦しましょう。間違えた語は下にあります。"}</div></div>`+
+  (bad.length?`<div class="wrong">`+bad.map(n=>`<div class="card" style="min-height:0;margin-top:10px">${tag(D[n][0])}<div class="term">${esc(D[n][1])}</div><div class="mean">${esc(D[n][2])}</div><pre>${esc(D[n][3])}</pre></div>`).join("")+`</div>`:"")+
+  `<button class="next" id="again">もう一回</button>`;
+  $("#again").onclick=rebuild;return}
+ const n=t.ns[t.i],d=D[n];
+ $("#pos").textContent=`問 ${t.i+1} / ${tot}`;
+ view.innerHTML=`<div class="card">${tag(d[0])}<div class="term">${esc(d[1])}</div><div class="mean">意味はどれ？</div></div>`+t.opts[t.i].map(k=>`<button class="opt" data-n="${k}">${esc(D[k][2])}</button>`).join("");
+ view.querySelectorAll(".opt").forEach(b=>b.onclick=()=>{const k=+b.dataset.n;t.pick[t.i]=k;known[n]=k===n;save();t.i++;renderTest()});
+}
+$("#mode").onclick=e=>{const b=e.target.closest("button");if(!b)return;mode=b.dataset.m;[...$("#mode").children].forEach(x=>x.setAttribute("aria-pressed",x===b));rebuild()};
+$("#cat").onclick=e=>{const b=e.target.closest("button");if(!b)return;cat=b.dataset.c;[...$("#cat").children].forEach(x=>x.setAttribute("aria-pressed",x===b));rebuild()};
+$("#reset").onclick=()=>{if(confirm("習得状況をリセットしますか？")){known={};save();rebuild()}};
+rebuild();
+</script>
+</body>
+</html>
